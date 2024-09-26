@@ -1,0 +1,127 @@
+# Step 1: Create a Google Cloud Persistent Disk
+gcloud compute disks create --size=10Gi --zone=us-central1-a my-gke-disk
+
+# Step 2: Create the GCS Bucket and Enable Versioning
+gsutil mb gs://velero-backup-abhishek
+gsutil versioning set on gs://velero-backup-abhishek
+
+# Step 3: Create a namespace for the application
+kubectl create namespace node-app
+
+# Step 4: Apply Persistent Volume and Application Configurations
+kubectl apply -f pv.yaml
+kubectl apply -f mongo-config.yaml -n node-app
+kubectl apply -f mongo-db.yaml -n node-app
+kubectl apply -f node-app.yaml -n node-app
+kubectl apply -f pvc.yaml -n node-app
+
+# Step 5: Download and Install Velero CLI
+wget https://github.com/vmware-tanzu/velero/releases/download/v1.10.1/velero-v1.10.1-linux-amd64.tar.gz
+tar -xvf velero-v1.10.1-linux-amd64.tar.gz
+cd velero-v1.10.1-linux-amd64/
+sudo mv velero /usr/local/bin/
+
+# Step 6: Install Velero on the GKE Cluster
+velero install \
+    --provider gcp \
+    --bucket velero-backup-abhishek \
+    --backup-location-config serviceAccount=internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \
+    --secret-file /home/maheshchaudhari773/internaldevopsproject-a2b357447f36.json \
+    --namespace velero \
+    --plugins velero/velero-plugin-for-gcp
+
+# Step 7: Verify Velero Installation
+kubectl get pods -n velero
+kubectl get deployments -n velero
+
+# Step 8: Create Backup of Node.js Application
+velero backup create node-app-backup --include-namespaces node-app --include-resources '*'
+
+# Step 9: Describe Backup Details
+velero backup describe node-app-backup --details
+
+# Step 10: Delete the node-app Namespace (to test restoration)
+kubectl delete namespace node-app
+
+# Step 11: Restore from Backup
+velero restore create node-app-restore --from-backup node-app-backup
+
+# Step 12: Schedule Backups Every 5 Minutes
+velero create schedule my-schedule \
+    --schedule "*/5 * * * *" \
+    --include-namespaces node-app \
+    --ttl 15m
+
+
+
+
+    # gcloud compute disks create --size=10Gi --zone=us-central1-a my-gke-disk
+    # gcloud compute disks delete my-gke-disk --zone=us-central1-a
+
+    # Velero Demo on GKE 
+    
+    
+    # Create the GCS Bucket and Enable Versioning
+    
+    #  gsutil mb gs://velero-backup-abhishek
+    
+    #  gsutil versioning set on gs://velero-backup-abhishek
+    
+    # using namespace 
+    
+    # kubectl create namespace node-app
+    
+    # kubectl apply -f pv.yaml
+    
+    # kubectl apply -f mongo-config.yaml -n node-app
+    # kubectl apply -f mongo-db.yaml -n node-app
+    # kubectl apply -f node-app.yaml -n node-app
+    # kubectl apply -f pvc.yaml -n node-app
+    
+    
+    
+    
+    
+    
+    # wget https://github.com/vmware-tanzu/velero/releases/download/v1.10.1/velero-v1.10.1-linux-amd64.tar.gz
+    # tar -xvf velero-v1.10.1-linux-amd64.tar.gz
+    # cd /home/maheshchaudhari773/velero-v1.10.1-linux-amd64/
+    # sudo mv velero /usr/local/bin/
+    
+    
+    # velero install \
+    #     --provider gcp \
+    #     --bucket velero-backup-abhishek \
+    #     --backup-location-config serviceAccount=internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \
+    #     --secret-file /home/maheshchaudhari773/internaldevopsproject-a2b357447f36.json \
+    #     --namespace velero \
+    #     --plugins velero/velero-plugin-for-gcp
+    
+    # kubectl get pods -n velero
+    
+    # kubectl get deployments -n velero
+    
+    # velero backup create node-app-backup --include-namespaces node-app --include-resources '*'
+    
+    # velero backup delete node-app-backup --confirm
+    
+    # velero backup describe node-app-backup --details
+    
+    # kubectl delete namespace node-app
+    
+    # velero restore create node-app-restore --from-backup node-app-backup
+    
+    # velero restore delete node-app-restore --confirm
+    
+    
+    # Schedule a Backup Every 5 Minutes Using Velero
+    
+    # velero create schedule my-schedule \
+    #     --schedule "*/5 * * * *" \
+    #     --include-namespaces node-app \
+    #     --ttl 15m
+    
+    
+    
+    
+    

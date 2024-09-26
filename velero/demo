@@ -1,0 +1,129 @@
+Node Application Demo
+
+# Create the GCS bucket and enable versioning
+gsutil mb gs://velero-backup-abhishek
+gsutil versioning set on gs://velero-backup-abhishek
+
+
+# Install Velero
+wget https://github.com/vmware-tanzu/velero/releases/download/v1.10.1/velero-v1.10.1-linux-amd64.tar.gz
+tar -xvf velero-v1.10.1-linux-amd64.tar.gz
+cd /home/maheshchaudhari773/velero-v1.10.1-linux-amd64/
+sudo mv velero /usr/local/bin/
+
+# Configure Velero with GCP
+velero install \
+    --provider gcp \
+    --bucket velero-backup-abhishek \
+    --backup-location-config serviceAccount=internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \
+    --secret-file /home/maheshchaudhari773/internaldevopsproject-a2b357447f36.json \
+    --namespace velero \
+    --plugins velero/velero-plugin-for-gcp
+
+# Check Velero pods and deployments
+kubectl get pods -n velero
+kubectl get deployments -n velero
+
+# Create a GCP disk
+gcloud compute disks create --size=10Gi --zone=us-central1-a my-gke-disk
+
+
+# Create namespace and apply configurations
+kubectl create namespace node-app
+kubectl apply -f pv.yaml
+kubectl apply -f mongo-config.yaml -n node-app
+kubectl apply -f mongo-db.yaml -n node-app
+kubectl apply -f node-app.yaml -n node-app
+kubectl apply -f pvc.yaml -n node-app
+
+kubectl get pod -n node-app
+kubectl get svc -n node-app
+
+
+
+# Create, delete, and describe a backup
+velero backup create node-app-backup --include-namespaces node-app --include-resources '*'
+
+velero backup delete node-app-backup --confirm
+velero backup describe node-app-backup --details
+
+# Delete namespace and restore from backup
+kubectl delete namespace node-app
+kubectl delete -f pv.yaml
+
+
+kubectl delete namespace node-app
+kubectl delete -f pv.yaml
+gcloud compute disks delete my-gke-disk --zone=us-central1-a
+
+# Verify Disk Deletion
+gcloud compute disks list
+
+#  Delete the Persistent Disk
+gcloud compute disks delete my-gke-disk --zone=us-central1-a
+
+velero restore create node-app-restore --from-backup node-app-backup
+velero restore delete node-app-restore --confirm
+velero restore describe node-app-restore --details
+
+# Schedule a backup every 5 minutes
+velero create schedule my-schedule \
+    --schedule "*/5 * * * *" \
+    --include-namespaces node-app \
+    --ttl 15m
+
+
+
+
+
+
+
+
+
+Nginx Demo
+
+In gke 
+
+kubectl create namespace nginx  
+# Create a namespace named 'nginx'.
+kubectl apply -f nginx.yaml -n nginx 
+# Deploy the NGINX application defined in nginx.yaml to the 'nginx' namespace.
+kubectl get pod -n nginx  
+# List all pods running in the 'nginx' namespace.
+kubectl get svc -n nginx  
+# List all services in the 'nginx' namespace.
+velero backup create nginx-backup --include-namespaces nginx --include-resources '*'  
+# Create a backup of all resources in the 'nginx' namespace.
+velero backup describe nginx-backup --details  
+# Describe the details of the created backup.
+
+
+In minikube 
+
+
+velero install \
+    --provider gcp \
+    --bucket velero-backup-abhishek \
+    --backup-location-config serviceAccount=internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \
+    --secret-file /home/abhishekkumar/internaldevopsproject-a2b357447f36.json \
+    --namespace velero \
+    --plugins velero/velero-plugin-for-gcp
+
+velero install \  # Install Velero for backups in Minikube using GCP as the provider.
+    --provider gcp \
+    --bucket velero-backup-abhishek \  # Specify the GCS bucket for storing backups.
+    --backup-location-config serviceAccount=internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \  # Provide the service account for authentication.
+    --secret-file /home/abhishekkumar/internaldevopsproject-a2b357447f36.json \  # Provide the path to the GCP service account key file.
+    --namespace velero \  # Install Velero in the 'velero' namespace.
+    --plugins velero/velero-plugin-for-gcp  # Use the GCP plugin for Velero.
+
+velero get backup  
+# List all backups available in Velero.
+velero restore create nginx-restore --from-backup nginx-backup  
+# Restore resources from the 'nginx-backup' backup.
+kubectl get pod -n nginx  
+# Check the status of pods in the 'nginx' namespace after restoration.
+kubectl get svc -n nginx  
+# Check the status of services in the 'nginx' namespace after restoration.
+minikube service nginx-service --url  
+# Get the URL to access the NGINX service in Minikube.

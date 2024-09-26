@@ -1,0 +1,98 @@
+Create the GCS Bucket and Enable Versioning
+
+ gsutil mb gs://velero-backup-abhishek
+
+ gsutil versioning set on gs://velero-backup-abhishek
+
+Install Velero CLI
+
+wget https://github.com/vmware-tanzu/velero/releases/download/v1.10.1/velero-v1.10.1-linux-amd64.tar.gz
+tar -xvf velero-v1.10.1-linux-amd64.tar.gz
+cd /home/maheshchaudhari773/velero-v1.10.1-linux-amd64/
+sudo mv velero /usr/local/bin/
+
+Service Account Setup
+
+gcloud projects add-iam-policy-binding internaldevopsproject \
+  --member serviceAccount:internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \
+  --role roles/storage.admin
+
+Deploy Velero in GKE
+The --plugins flag is required for specifying the Velero plugins needed for the backup and restore operations. For GCP, you should include the velero/velero-plugin-for-gcp plugin.
+
+velero install \
+    --provider gcp \
+    --bucket velero-backup-abhishek \
+    --backup-location-config serviceAccount=internaldevopsproject@internaldevopsproject.iam.gserviceaccount.com \
+    --secret-file /home/abhishekkumar/internaldevopsproject-a2b357447f36.json \
+    --namespace velero \
+    --plugins velero/velero-plugin-for-gcp
+    --snapshot-location-config region=us-central1
+
+
+kubectl get pods -n velero
+
+velero version
+
+Verify Velero Deployment
+kubectl get deployments -n velero
+
+
+
+To achieve your goal of running an NGINX application, taking a backup using Velero, deleting it, and then restoring it, follow these steps:
+
+Deploy NGINX Application
+kubectl apply -f nginx-deployment.yaml
+
+
+Take a Backup Using Velero
+
+velero backup create nginx-backup --include-namespaces default --include-resources deployments,services
+
+Verify the backup status:
+
+velero backup describe nginx-backup --details
+
+Delete NGINX Application
+
+kubectl delete -f nginx-deployment.yaml
+
+kubectl get deployments
+
+kubectl get services
+
+Restore from Velero
+
+velero restore create nginx-restore --from-backup nginx-backup
+
+kubectl delete restore node-app-restore -n velero
+
+Describe the Restore
+
+velero restore describe nginx-restore --details
+
+Check Kubernetes Resources
+
+kubectl get deployments
+
+kubectl get services
+
+
+Schedule a Backup Every 5 Minutes Using Velero
+
+velero create schedule my-schedule \
+    --schedule "*/5 * * * *" \
+    --include-namespaces default \
+    --ttl 15m
+
+
+
+# Create a Persistent Disk in GCP
+# gcloud compute disks create --size=10Gi --zone=us-central1-a my-gke-disk
+
+# Verify Disk Deletion
+# gcloud compute disks list
+
+#  Delete the Persistent Disk
+#  gcloud compute disks delete my-gke-disk --zone=us-central1-a
+
